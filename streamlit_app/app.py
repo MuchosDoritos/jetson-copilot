@@ -96,10 +96,21 @@ with st.sidebar:
 
         if index_name != None:
             context_prompt = st.text_area("System prompt with context", 
-"""You are a chatbot, able to have normal interactions, as well as talk about NVIDIA Jetson embedded AI computer.
-Here are the relevant documents for the context:\n
+"""ROLE:
+You are a precise knowledge assistant that provides accurate answers based solely on the provided documents.
+
+DOCUMENT:
 {context_str}
-\nInstruction: Use the previous chat history, or the context above, to interact and help the user.""", height=240)
+
+QUESTION:
+{query_str}
+
+INSTRUCTIONS:
+1. First, identify the specific sections of the DOCUMENT that are most relevant to the QUESTION
+2. Quote these relevant sections verbatim and indicate why they are applicable
+3. Then answer the QUESTION using only information from these sections
+4. Format your response in a clear, structured way
+5. If the DOCUMENT doesn't contain sufficient information to answer the QUESTION, respond with INSUFFICIENT INFORMATION and suggest what additional details would be needed""", height=340)
             logging.info(f"> context_prompt = {context_prompt}")
 
             # init models
@@ -113,13 +124,36 @@ Here are the relevant documents for the context:\n
 
 # initialize history
 if "messages" not in st.session_state.keys():
-    st.session_state.messages = [
-        {"role": "assistant", "content": "Ask me any question about NVIDIA Jetson embedded AI computer!", "avatar": AVATAR_AI}
+    st.session_state.messages = [{"role": "assistant", "content": "👋 Welcome to Jetson Copilot! I can answer questions and help with your AI projects using the knowledge in your vectorized documents.\n\n"
+        "**For best results with RAG (when enabled):**\n"
+        "- Be specific and detailed in your questions\n"
+        "- Break down complex questions into smaller, focused parts\n"
+        "- Include specific keywords from your documents\n"
+        "- Mention technical specifications when relevant\n\n"
+        "What would you like to know today?", 
+        "avatar": AVATAR_AI}
     ]
 
 def model_res_generator(prompt=""):
     if use_index:
         logging.info(f">>> RAG enabled:")
+
+        # Add this logging before stream_chat to see the actual query
+        logging.info(f">>> Query: {prompt}")
+        
+        # Get the retrieved nodes before streaming to see what chunks are being used
+        retriever = st.session_state.index.as_retriever(
+            similarity_top_k=5  # Adjust this number based on your needs
+        )
+        retrieved_nodes = retriever.retrieve(prompt)
+        
+        # Log the retrieved chunks
+        logging.info(f">>> Retrieved {len(retrieved_nodes)} chunks for context:")
+        for i, node in enumerate(retrieved_nodes):
+            logging.info(f">>> Chunk {i+1}:")
+            logging.info(f">>> Score: {node.score if hasattr(node, 'score') else 'N/A'}")
+            logging.info(f">>> Text: {node.text}") 
+        
         response_stream = st.session_state.chat_engine.stream_chat(prompt)
         for chunk in response_stream.response_gen:
             yield chunk
