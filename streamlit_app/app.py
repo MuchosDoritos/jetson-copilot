@@ -23,7 +23,7 @@ import utils.func
 import utils.constants as const
 
 # App title
-st.set_page_config(page_title="Jetson Copilot", menu_items=None)
+st.set_page_config(page_title="Advantech Copilot", menu_items=None)
 
 AVATAR_AI   = Image.open('./images/jetson-soc.png')
 AVATAR_USER = Image.open('./images/user-purple.png')
@@ -32,7 +32,9 @@ def find_saved_indexes():
     return utils.func.list_directories(const.INDEX_ROOT_PATH)
 
 def load_index(index_name):
-    Settings.embed_model = OllamaEmbedding("mxbai-embed-large:latest") ##TODO
+    Settings.embed_model = OllamaEmbedding("llama3:latest") ##TODO
+    logging.info(f"Loading index with embedding model: llama3:latest")
+
     dir = f"{const.INDEX_ROOT_PATH}/{index_name}"
     storage_context = StorageContext.from_defaults(persist_dir=dir)
     index = load_index_from_storage(storage_context)
@@ -59,8 +61,8 @@ with st.sidebar:
     #     """<style>textarea { font-size: 0.8rem !important; } </style>""",
     #     unsafe_allow_html=True,
     # )
-    st.title(":airplane: Jetson Copilot")
-    st.subheader('Your local AI assistant on Jetson', divider='rainbow')
+    st.title(":airplane: Advantech Copilot")
+    st.subheader('Your local AI assistant on Advantech Documents', divider='rainbow')
 
     models = [model["name"] for model in ollama.list()["models"]]
     col3, col4 = st.columns([5,1])
@@ -124,15 +126,15 @@ INSTRUCTIONS:
 
 # initialize history
 if "messages" not in st.session_state.keys():
-    st.session_state.messages = [{"role": "assistant", "content": "👋 Welcome to Jetson Copilot! I can answer questions and help with your AI projects using the knowledge in your vectorized documents.\n\n"
+    st.session_state.messages = [{"role": "assistant", "content": "👋 Welcome to Advantech Copilot! I can answer questions and help with your AI projects using the knowledge in your vectorized documents.\n\n"
         "**For best results with RAG (when enabled):**\n"
         "- Be specific and detailed in your questions\n"
         "- Break down complex questions into smaller, focused parts\n"
         "- Include specific keywords from your documents\n"
         "- Mention technical specifications when relevant\n\n"
         "What would you like to know today?", 
-        "avatar": AVATAR_AI}
-    ]
+        "avatar": AVATAR_AI}]
+    
 
 def model_res_generator(prompt=""):
     if use_index:

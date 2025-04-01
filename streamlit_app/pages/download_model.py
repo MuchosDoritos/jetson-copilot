@@ -16,7 +16,7 @@ import utils.func
 import utils.constants as const
 
 # App title
-st.set_page_config(page_title="Jetson Copilot - Download Model", menu_items=None)
+st.set_page_config(page_title="Advantech Copilot - Download Model", menu_items=None)
 
 st.subheader("List of Models Already Downloaded")
 with st.spinner('Checking existing models hosted on Ollama...'):
