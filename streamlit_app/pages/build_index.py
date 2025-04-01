@@ -3,7 +3,6 @@ import openai
 import streamlit as st
 import pandas as pd
 
-from llama_index.core.node_parser import SentenceSplitter
 from llama_index.core import VectorStoreIndex, Settings, SimpleDirectoryReader
 from llama_index.llms.ollama import Ollama
 from llama_index.core.memory import ChatMemoryBuffer
@@ -38,8 +37,6 @@ DEFAULT_FILE_READER_CLS: Dict[str, Type[BaseReader]] = {
     ".xlsx": ExcelReader,
     ".xls": ExcelReader,
 }
-
-JAPANESE_CHUNKING_REGEX = r'[^,.;。！？]+[,.;。！？]?|[,.;。！？]'
 
 def on_settings_change():
     logging.info(" --- settings updated ---")
@@ -122,82 +119,37 @@ def index_data():
         start_time = time.time()
         with st.status("Indexing documents..."):
             logging.info(f"Setting Embedding model... {Settings.embed_model}")
-            
-            if st.session_state.use_japanese_splitter:
-                # Use the SentenceSplitter with Japanese-optimized regex
-                text_splitter = SentenceSplitter(
-                    chunk_size=Settings.chunk_size,
-                    chunk_overlap=Settings.chunk_overlap,
-                    secondary_chunking_regex=JAPANESE_CHUNKING_REGEX
-                )
-                logging.info("Using Japanese-optimized sentence splitter")
-            else:
-                # Use default SentenceSplitter
-                text_splitter = SentenceSplitter(
-                    chunk_size=Settings.chunk_size,
-                    chunk_overlap=Settings.chunk_overlap
-                )
-                logging.info("Using default sentence splitter")
-            
             docs = []
             web_docs = []
             if st.session_state.num_of_files_to_read != 0:
-                reader = SimpleDirectoryReader(
-                    input_dir=st.session_state.docspath, 
-                    recursive=True,
-                )
+                reader = SimpleDirectoryReader(input_dir=st.session_state.docspath, recursive=True)
                 st.write(    "Loading local documents...")
                 logging.info("Loading local documents...")
-
-                # Load documents first
-                raw_docs = reader.load_data()
-                st.write(f"{len(raw_docs)} local documents loaded.")
-                logging.info(f"{len(raw_docs)} local documents loaded.")
-
-                # Then split the documents with the text splitter
-                st.write("Splitting documents...")
-                logging.info("Splitting documents...")
-                docs = []
-                for doc in raw_docs:
-                    docs.extend(text_splitter.split_text(doc.text))
-
-                # Convert the text chunks back to Documents
-                docs = [Document(text=chunk) for chunk in docs]
-                st.write(f"{len(docs)} document chunks created after splitting.")
-                logging.info(f"{len(docs)} document chunks created after splitting.")
-                
-                st.write("Building Index from local docs (using GPU)...")
+                docs = reader.load_data()
+                st.write(    f"{len(docs)} local documents loaded.")
+                logging.info(f"{len(docs)} local documents loaded.")
+                st.write(    "Building Index from local docs (using GPU)...")
                 logging.info("Building Index from local docs (using GPU)...")
                 index = VectorStoreIndex.from_documents(docs)
-
             if st.session_state.num_of_urls_to_read != 0:
                 st.write(    "Loading web documents...")
                 logging.info("Loading web documents...")
                 web_docs = SimpleWebPageReader(html_to_text=True).load_data(st.session_state.urllist)
                 st.write(    f"{len(web_docs)} web documents loaded.")
                 logging.info(f"{len(web_docs)} web documents loaded.")
-                
-                 # Split web documents
-                web_docs = []
-                for doc in raw_web_docs:
-                    web_docs.extend([Document(text=chunk) for chunk in text_splitter.split_text(doc.text)])
-                
-                st.write(f"{len(web_docs)} web document chunks created after splitting.")
-                logging.info(f"{len(web_docs)} web document chunks created after splitting.")
-                logging.info(f"web_docs[0]: {web_docs[0] if web_docs else 'No web docs'}")
-                
-                st.write("Building Index from web docs (using GPU)...")
+                logging.info(f"len(web_docs): {len(web_docs)}")
+                logging.info(f"web_docs[0]  : {web_docs[0]}")
+                st.write(    "Building Index from web docs (using GPU)...")
                 logging.info("Building Index from web docs (using GPU)...")
                 if 'index' not in locals():
                     index = VectorStoreIndex.from_documents(web_docs)
                 else:
                     for d in web_docs:
-                        index.insert(document=d)
-                        
-            st.write("Saving the built index to disk...")
+                        index.insert(document = d)
+            st.write(    "Saving the built index to disk...")
             logging.info("Saving the built index to disk...")
             index.storage_context.persist(persist_dir=st.session_state.index_path_to_be_created)
-            st.write("Indexing done!")
+            st.write(    "Indexing done!")
             logging.info("Indexing done!")
         end_time = time.time()
         elapsed_time = end_time - start_time
@@ -263,16 +215,6 @@ container_settings = st.container()
 
 check_if_ready_to_index()
 logging.info(f"Setting Embedding model... {Settings.embed_model}")
-
-# Use st.session_state to store the toggle value
-st.session_state.use_japanese_splitter = st.toggle(
-    "Use Japanese sentence splitter", 
-    value=False,
-    help="Enable special text processing for Japanese documents"
-)
-
-if st.session_state.use_japanese_splitter:
-    st.info("Japanese sentence splitter is enabled. This will improve processing of Japanese text.")
 
 st.button("Build Index", on_click=index_data, key='my_button', disabled=st.session_state.get("index_button_disabled", True))
 container_status = st.container()
